@@ -986,6 +986,13 @@ function toggleLang() {
   currentLang = currentLang === 'en' ? 'zh' : 'en';
   document.body.className = currentLang === 'en' ? 'lang-en' : 'lang-zh';
   document.getElementById('lang-label').textContent = currentLang === 'en' ? 'ZH' : 'EN';
+  document.querySelectorAll('[data-en]').forEach(el => {
+    const text = el.getAttribute('data-' + currentLang);
+    if (text) {
+      if (el.tagName === 'IMG') el.setAttribute('alt', text);
+      else el.innerHTML = text;
+    }
+  });
 }
 
 // Carousel
