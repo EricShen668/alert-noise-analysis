@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alert Noise Reduction Analysis | 告警降噪分析报告</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --alibaba-orange: #FF6A00;
+    --alibaba-blue: #00A1D6;
+    --deep-blue: #003D5C;
+    --bg-light: #F7F9FC;
+    --card-bg: #FFFFFF;
+    --text-primary: #1A1A2E;
+    --text-secondary: #5A5A72;
+    --border: #E2E8F0;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', 'Noto Sans SC', sans-serif; background: var(--bg-light); color: var(--text-primary); }
+  .lang-zh .en-only { display: none; }
+  .lang-en .zh-only { display: none; }
+  .hero-gradient { background: linear-gradient(135deg, var(--deep-blue) 0%, #005a8c 50%, var(--alibaba-blue) 100%); }
+  .card { background: var(--card-bg); border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04); border: 1px solid var(--border); transition: transform 0.2s, box-shadow 0.2s; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+  .accent-bar { height: 4px; border-radius: 2px; }
+  .accent-orange { background: var(--alibaba-orange); }
+  .accent-blue { background: var(--alibaba-blue); }
+  .accent-green { background: var(--success); }
+  .accent-red { background: var(--danger); }
+  .sticky-nav { backdrop-filter: blur(16px); background: rgba(255,255,255,0.92); }
+  .section-number { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+  .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .carousel-slide { display: none; animation: fadeIn 0.6s ease; }
+  .carousel-slide.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .tab-content { display: none; animation: fadeIn 0.3s ease; }
+  .tab-content.active { display: block; }
+  .qa-item { border-left: 3px solid transparent; transition: all 0.2s; }
+  .qa-item:hover { border-left-color: var(--alibaba-blue); background: #f0f9ff; }
+  .metric-card { text-align: center; padding: 24px 16px; }
+  .metric-value { font-size: 36px; font-weight: 800; line-height: 1; }
+  .metric-label { font-size: 13px; color: var(--text-secondary); margin-top: 8px; }
+  .chart-container { position: relative; height: 280px; }
+  .progress-bar { height: 8px; border-radius: 4px; background: #E2E8F0; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; transition: width 1s ease; }
+  .roadmap-step { position: relative; padding-left: 32px; }
+  .roadmap-step::before { content: ''; position: absolute; left: 10px; top: 32px; bottom: -16px; width: 2px; background: #E2E8F0; }
+  .roadmap-step:last-child::before { display: none; }
+  .roadmap-dot { position: absolute; left: 0; top: 4px; width: 22px; height: 22px; border-radius: 50%; background: var(--alibaba-blue); border: 3px solid white; box-shadow: 0 0 0 2px var(--alibaba-blue); }
+  .roadmap-dot.orange { background: var(--alibaba-orange); box-shadow: 0 0 0 2px var(--alibaba-orange); }
+  .roadmap-dot.green { background: var(--success); box-shadow: 0 0 0 2px var(--success); }
+  .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+  .collapsible-content.open { max-height: 600px; }
+  .chevron { transition: transform 0.3s; }
+  .chevron.rotated { transform: rotate(180deg); }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+  @media (max-width: 768px) {
+    .metric-value { font-size: 28px; }
+    .chart-container { height: 220px; }
+  }
+</style>
+</head>
+<body class="lang-zh">
+
+<!-- Sticky Navbar -->
+<nav class="sticky-nav fixed top-0 left-0 right-0 z-50 border-b border-gray-200">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg hero-gradient flex items-center justify-center text-white font-bold text-sm">A</div>
+        <span class="font-bold text-lg text-gray-900" data-en="Alert Noise Analysis" data-zh="告警降噪分析">告警降噪分析</span>
+      </div>
+      <div class="hidden md:flex items-center gap-1">
+        <a href="#overview" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition" data-en="Overview" data-zh="总览">总览</a>
+        <a href="#classification" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition" data-en="Classification" data-zh="分类">分类</a>
+        <a href="#rootcause" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition" data-en="Root Cause" data-zh="根因">根因</a>
+        <a href="#solution" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition" data-en="Solution" data-zh="方案">方案</a>
+        <a href="#roadmap" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition" data-en="Roadmap" data-zh="路线图">路线图</a>
+        <a href="#qa" class="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition" data-en="Q&A" data-zh="问答">问答</a>
+      </div>
+      <button onclick="toggleLang()" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 text-sm font-medium hover:bg-gray-200 transition">
+        <span id="lang-label">EN</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero Section -->
+<section class="hero-gradient pt-24 pb-16 text-white relative overflow-hidden">
+  <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 20% 50%, white 1px, transparent 1px); background-size: 40px 40px;"></div>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+    <div class="flex flex-col lg:flex-row items-center gap-12">
+      <div class="flex-1">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-sm font-medium mb-6">
+          <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+          <span data-en="Alibaba Cloud Monitoring Analysis" data-zh="阿里云监控日志分析">阿里云监控日志分析</span>
+        </div>
+        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
+          <span data-en="Stop Alert Fatigue" data-zh="终结告警疲劳">终结告警疲劳</span>
+          <br>
+          <span class="text-amber-300" data-en="Smart Noise Reduction" data-zh="智能降噪方案">智能降噪方案</span>
+        </h1>
+        <p class="text-lg text-blue-100 mb-8 max-w-2xl" data-en="354 alerts in 31 days. 87.9% auto-recovered without any action. It's time to fix the root cause before the next incident." data-zh="31天内354条告警，87.9%自动恢复且无人处理。在下一次事故发生前，我们需要根治这个问题。">31天内354条告警，87.9%自动恢复且无人处理。在下一次事故发生前，我们需要根治这个问题。</p>
+        <div class="flex flex-wrap gap-3">
+          <span class="badge bg-white/20 text-white">354 Alerts</span>
+          <span class="badge bg-red-500/30 text-white">87.9% Auto-Recovered</span>
+          <span class="badge bg-amber-500/30 text-white">91.5% Repeated</span>
+          <span class="badge bg-green-500/30 text-white">~10% Actionable</span>
+        </div>
+      </div>
+      <div class="flex-1 w-full max-w-lg">
+        <!-- Carousel -->
+        <div class="relative bg-white/10 backdrop-blur rounded-2xl p-6 border border-white/20" id="hero-carousel">
+          <div class="carousel-slide active">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="section-number bg-blue-500 text-white">01</div>
+              <div>
+                <h3 class="font-bold text-lg" data-en="Data Overview" data-zh="数据总览">数据总览</h3>
+                <p class="text-blue-200 text-sm" data-en="Core metrics & distribution" data-zh="核心指标与分布">核心指标与分布</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-white/10 rounded-xl p-3 text-center"><div class="text-2xl font-bold">354</div><div class="text-xs text-blue-200">Total</div></div>
+              <div class="bg-white/10 rounded-xl p-3 text-center"><div class="text-2xl font-bold">311</div><div class="text-xs text-blue-200">Auto-Recovered</div></div>
+            </div>
+          </div>
+          <div class="carousel-slide">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="section-number bg-orange-500 text-white">02</div>
+              <div>
+                <h3 class="font-bold text-lg" data-en="Classification" data-zh="告警分类">告警分类</h3>
+                <p class="text-blue-200 text-sm" data-en="Alert types & patterns" data-zh="告警类型与模式">告警类型与模式</p>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="flex justify-between text-sm"><span>Bandwidth</span><span>53.1%</span></div>
+              <div class="progress-bar bg-white/20"><div class="progress-fill bg-orange-400" style="width:53%"></div></div>
+              <div class="flex justify-between text-sm"><span>Disk</span><span>18.9%</span></div>
+              <div class="progress-bar bg-white/20"><div class="progress-fill bg-blue-400" style="width:19%"></div></div>
+            </div>
+          </div>
+          <div class="carousel-slide">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="section-number bg-red-500 text-white">03</div>
+              <div>
+                <h3 class="font-bold text-lg" data-en="Root Cause" data-zh="根因分析">根因分析</h3>
+                <p class="text-blue-200 text-sm" data-en="Why 87.9% are noise" data-zh="为什么87.9%是噪音">为什么87.9%是噪音</p>
+              </div>
+            </div>
+            <p class="text-sm text-blue-100 leading-relaxed" data-en="Sensitive thresholds, no deduplication, and missing duration filters create a flood of false alarms." data-zh="阈值过于敏感、缺少去重机制、无持续时间过滤，导致大量假告警泛滥。">阈值过于敏感、缺少去重机制、无持续时间过滤，导致大量假告警泛滥。</p>
+          </div>
+          <div class="carousel-slide">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="section-number bg-green-500 text-white">04</div>
+              <div>
+                <h3 class="font-bold text-lg" data-en="Smart Solution" data-zh="智能方案">智能方案</h3>
+                <p class="text-blue-200 text-sm" data-en="6 strategies to cut noise by 85%" data-zh="6大策略降噪85%+">6大策略降噪85%+</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center text-xs">
+              <div class="bg-white/10 rounded-lg p-2"><div class="font-bold text-lg">70%</div><div>Auto-Rec Filter</div></div>
+              <div class="bg-white/10 rounded-lg p-2"><div class="font-bold text-lg">10%</div><div>Deduplication</div></div>
+              <div class="bg-white/10 rounded-lg p-2"><div class="font-bold text-lg">8%</div><div>Notification Split</div></div>
+            </div>
+          </div>
+          <div class="carousel-slide">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="section-number bg-purple-500 text-white">05</div>
+              <div>
+                <h3 class="font-bold text-lg" data-en="Action Plan" data-zh="行动计划">行动计划</h3>
+                <p class="text-blue-200 text-sm" data-en="Phase 1 ready in 1-2 weeks" data-zh="Phase 1 预计1-2周完成">Phase 1 预计1-2周完成</p>
+              </div>
+            </div>
+            <div class="bg-white/10 rounded-xl p-4 text-center">
+              <div class="text-3xl font-extrabold text-green-300">354 &rarr; 30-50</div>
+              <div class="text-sm text-blue-200 mt-1" data-en="Alerts per month after Phase 1" data-zh="Phase 1后月告警量">Phase 1后月告警量</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between mt-4">
+            <button onclick="prevSlide()" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition text-white">&larr;</button>
+            <div class="flex gap-2">
+              <span class="w-2 h-2 rounded-full bg-white/60 slide-dot active" onclick="goToSlide(0)"></span>
+              <span class="w-2 h-2 rounded-full bg-white/30 slide-dot" onclick="goToSlide(1)"></span>
+              <span class="w-2 h-2 rounded-full bg-white/30 slide-dot" onclick="goToSlide(2)"></span>
+              <span class="w-2 h-2 rounded-full bg-white/30 slide-dot" onclick="goToSlide(3)"></span>
+              <span class="w-2 h-2 rounded-full bg-white/30 slide-dot" onclick="goToSlide(4)"></span>
+            </div>
+            <button onclick="nextSlide()" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition text-white">&rarr;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Part 1: Overview -->
+<section id="overview" class="py-16">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="section-number bg-blue-600 text-white">01</div>
+      <div>
+        <h2 class="text-2xl font-bold" data-en="Data Overview" data-zh="数据总览">数据总览</h2>
+        <p class="text-sm text-gray-500" data-en="April 25 - May 25, 2026 | 31 days, 354 alerts" data-zh="2026/04/25 - 2026/05/25 | 31天，354条告警">2026/04/25 - 2026/05/25 | 31天，354条告警</p>
+      </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
+      <div class="card metric-card">
+        <div class="metric-value text-blue-600">354</div>
+        <div class="metric-label" data-en="Total Alerts" data-zh="告警总量">告警总量</div>
+      </div>
+      <div class="card metric-card">
+        <div class="metric-value text-red-500">319</div>
+        <div class="metric-label" data-en="Critical" data-zh="严重级别">严重级别</div>
+      </div>
+      <div class="card metric-card">
+        <div class="metric-value text-green-500">311</div>
+        <div class="metric-label" data-en="Auto-Recovered" data-zh="自动恢复">自动恢复</div>
+      </div>
+      <div class="card metric-card">
+        <div class="metric-value text-orange-500">34</div>
+        <div class="metric-label" data-en="Manual Recovery" data-zh="手动恢复">手动恢复</div>
+      </div>
+      <div class="card metric-card">
+        <div class="metric-value text-purple-600">9</div>
+        <div class="metric-label" data-en="Pending" data-zh="待响应">待响应</div>
+      </div>
+      <div class="card metric-card">
+        <div class="metric-value text-gray-800">87.9%</div>
+        <div class="metric-label" data-en="No Action Taken" data-zh="无人工处理">无人工处理</div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid lg:grid-cols-2 gap-6 mb-8">
+      <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-lg" data-en="Alert Status Distribution" data-zh="告警状态分布">告警状态分布</h3>
+          <span class="badge bg-green-100 text-green-700" data-en="311 Auto-Recovered" data-zh="311条自动恢复">311条自动恢复</span>
+        </div>
+        <div class="chart-container"><canvas id="statusChart"></canvas></div>
+      </div>
+      <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-lg" data-en="Alert Channel Distribution" data-zh="告警渠道分布">告警渠道分布</h3>
+          <span class="badge bg-blue-100 text-blue-700">320 CloudMonitor</span>
+        </div>
+        <div class="chart-container"><canvas id="channelChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Severity Warning -->
+    <div class="card p-6 border-l-4 border-red-500 bg-red-50">
+      <div class="flex items-start gap-4">
+        <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-lg">!</div>
+        <div>
+          <h4 class="font-bold text-red-900 mb-1" data-en="Severity Inflation Detected" data-zh="检测到等级泛化问题">检测到等级泛化问题</h4>
+          <p class="text-red-800 text-sm" data-en="90.1% of alerts are labeled 'Critical', but only 2.5% actually require human response. This causes engineers to ignore all 'Critical' alerts, including real emergencies." data-zh="90.1%的告警被标记为'严重'，但只有2.5%真正需要人工响应。这导致工程师忽略所有'严重'告警，包括真正的紧急情况。">90.1%的告警被标记为'严重'，但只有2.5%真正需要人工响应。这导致工程师忽略所有'严重'告警，包括真正的紧急情况。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Part 2: Classification -->
+<section id="classification" class="py-16 bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="section-number bg-orange-500 text-white">02</div>
+      <div>
+        <h2 class="text-2xl font-bold" data-en="Alert Classification" data-zh="告警分类与聚类">告警分类与聚类</h2>
+        <p class="text-sm text-gray-500" data-en="Top 4 alert types account for 86.7% of all noise" data-zh="Top 4告警类型占据86.7%的噪音">Top 4告警类型占据86.7%的噪音</p>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-6 mb-8">
+      <div class="card p-6">
+        <h3 class="font-bold text-lg mb-4" data-en="Alert Type Distribution" data-zh="告警类型分布">告警类型分布</h3>
+        <div class="chart-container"><canvas id="typeChart"></canvas></div>
+      </div>
+      <div class="card p-6">
+        <h3 class="font-bold text-lg mb-4" data-en="Auto-Recovery Rate by Type" data-zh="各类型自动恢复率">各类型自动恢复率</h3>
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between text-sm mb-1"><span data-en="Bandwidth" data-zh="带宽使用率">带宽使用率</span><span class="font-semibold">100%</span></div>
+            <div class="progress-bar"><div class="progress-fill bg-red-400" style="width:100%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-sm mb-1"><span data-en="CPU" data-zh="CPU使用率">CPU使用率</span><span class="font-semibold">100%</span></div>
+            <div class="progress-bar"><div class="progress-fill bg-red-400" style="width:100%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-sm mb-1"><span data-en="Disk" data-zh="磁盘使用率">磁盘使用率</span><span class="font-semibold">95.5%</span></div>
+            <div class="progress-bar"><div class="progress-fill bg-orange-400" style="width:95.5%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-sm mb-1"><span data-en="Memory" data-zh="内存使用率">内存使用率</span><span class="font-semibold">90.0%</span></div>
+            <div class="progress-bar"><div class="progress-fill bg-yellow-400" style="width:90%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-sm mb-1"><span data-en="ALB Unhealthy" data-zh="ALB不健康服务器">ALB不健康服务器</span><span class="font-semibold">66.7%</span></div>
+            <div class="progress-bar"><div class="progress-fill bg-blue-400" style="width:66.7%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Repeat Alerts -->
+    <div class="card p-6">
+      <h3 class="font-bold text-lg mb-4" data-en="Top Repeat Alerts (31 Days)" data-zh="高频重复告警（31天）">高频重复告警（31天）</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-200 text-left text-gray-500">
+              <th class="pb-3 font-medium" data-en="Alert" data-zh="告警内容">告警内容</th>
+              <th class="pb-3 font-medium text-center" data-en="Count" data-zh="次数">次数</th>
+              <th class="pb-3 font-medium text-center" data-en="Auto-Rec" data-zh="自动恢复">自动恢复</th>
+              <th class="pb-3 font-medium text-center" data-en="Action" data-zh="处理">处理</th>
+              <th class="pb-3 font-medium text-center" data-en="Verdict" data-zh="判定">判定</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-gray-100">
+              <td class="py-3 font-medium">EIP 47.101.222.52 流入带宽 >=90%</td>
+              <td class="py-3 text-center font-bold text-red-600">178</td>
+              <td class="py-3 text-center text-green-600">100%</td>
+              <td class="py-3 text-center text-gray-400">None</td>
+              <td class="py-3 text-center"><span class="badge bg-red-100 text-red-700">Noise</span></td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-3 font-medium">ECI eci-uf6hw7ayo5h1wjaz0z0b 磁盘 >=90%</td>
+              <td class="py-3 text-center font-bold text-red-600">60</td>
+              <td class="py-3 text-center text-green-600">100%</td>
+              <td class="py-3 text-center text-gray-400">None</td>
+              <td class="py-3 text-center"><span class="badge bg-red-100 text-red-700">Noise</span></td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-3 font-medium">ECI eci-uf62jtm1h4r84twtsh4c 内存 >=90%</td>
+              <td class="py-3 text-center font-bold text-orange-600">27</td>
+              <td class="py-3 text-center text-green-600">100%</td>
+              <td class="py-3 text-center text-gray-400">None</td>
+              <td class="py-3 text-center"><span class="badge bg-red-100 text-red-700">Noise</span></td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-3 font-medium">EIP 47.101.222.52 流出带宽 >=90%</td>
+              <td class="py-3 text-center font-bold text-orange-600">8</td>
+              <td class="py-3 text-center text-green-600">100%</td>
+              <td class="py-3 text-center text-gray-400">None</td>
+              <td class="py-3 text-center"><span class="badge bg-red-100 text-red-700">Noise</span></td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-3 font-medium">云监控配额不足提醒</td>
+              <td class="py-3 text-center font-bold">8</td>
+              <td class="py-3 text-center text-gray-400">0%</td>
+              <td class="py-3 text-center text-blue-600">Planned</td>
+              <td class="py-3 text-center"><span class="badge bg-amber-100 text-amber-700">Info</span></td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-3 font-medium">WAF新增回源网段通知</td>
+              <td class="py-3 text-center font-bold">6</td>
+              <td class="py-3 text-center text-gray-400">0%</td>
+              <td class="py-3 text-center text-blue-600">Planned</td>
+              <td class="py-3 text-center"><span class="badge bg-amber-100 text-amber-700">Info</span></td>
+            </tr>
+            <tr>
+              <td class="py-3 font-medium">RDS a-sha-prd-cdp-rds-1 CPU >=90%</td>
+              <td class="py-3 text-center font-bold">4</td>
+              <td class="py-3 text-center text-green-600">100%</td>
+              <td class="py-3 text-center text-gray-400">None</td>
+              <td class="py-3 text-center"><span class="badge bg-red-100 text-red-700">Noise</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Part 3: Root Cause -->
+<section id="rootcause" class="py-16">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="section-number bg-red-500 text-white">03</div>
+      <div>
+        <h2 class="text-2xl font-bold" data-en="Root Cause Analysis" data-zh="无效告警根因分析">无效告警根因分析</h2>
+        <p class="text-sm text-gray-500" data-en="Three categories of noise identified" data-zh="识别出三类噪音来源">识别出三类噪音来源</p>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6 mb-10">
+      <div class="card p-6 relative overflow-hidden">
+        <div class="accent-bar accent-red mb-4"></div>
+        <div class="text-3xl font-extrabold text-red-500 mb-2">87.9%</div>
+        <h3 class="font-bold text-lg mb-2" data-en="Auto-Recovery Noise" data-zh="自动恢复型假告警">自动恢复型假告警</h3>
+        <p class="text-sm text-gray-600 mb-4" data-en="Alerts that self-recover without any engineer intervention. Thresholds are too sensitive." data-zh="告警触发后无人干预即自动恢复，说明阈值设置过于敏感。">告警触发后无人干预即自动恢复，说明阈值设置过于敏感。</p>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span>Bandwidth</span><span class="font-semibold">188</span></div>
+          <div class="flex justify-between"><span>Disk</span><span class="font-semibold">64</span></div>
+          <div class="flex justify-between"><span>Memory</span><span class="font-semibold">27</span></div>
+          <div class="flex justify-between"><span>CPU</span><span class="font-semibold">22</span></div>
+        </div>
+      </div>
+      <div class="card p-6 relative overflow-hidden">
+        <div class="accent-bar accent-orange mb-4"></div>
+        <div class="text-3xl font-extrabold text-orange-500 mb-2">9.6%</div>
+        <h3 class="font-bold text-lg mb-2" data-en="Notification Alerts" data-zh="通知类信息告警">通知类信息告警</h3>
+        <p class="text-sm text-gray-600 mb-4" data-en="Product upgrades, quota reminders, billing notices - not actual emergencies." data-zh="产品升级公告、配额提醒、欠费通知等，并非真正的紧急事件。">产品升级公告、配额提醒、欠费通知等，并非真正的紧急事件。</p>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span>Quota</span><span class="font-semibold">8</span></div>
+          <div class="flex justify-between"><span>WAF Upgrade</span><span class="font-semibold">6</span></div>
+          <div class="flex justify-between"><span>Overdue</span><span class="font-semibold">4</span></div>
+          <div class="flex justify-between"><span>Others</span><span class="font-semibold">16</span></div>
+        </div>
+      </div>
+      <div class="card p-6 relative overflow-hidden">
+        <div class="accent-bar accent-blue mb-4"></div>
+        <div class="text-3xl font-extrabold text-blue-500 mb-2">91.5%</div>
+        <h3 class="font-bold text-lg mb-2" data-en="Repeated Alerts" data-zh="重复型噪音告警">重复型噪音告警</h3>
+        <p class="text-sm text-gray-600 mb-4" data-en="Same resource fires same alert repeatedly. No deduplication or aggregation in place." data-zh="同一资源反复触发同类告警，缺少去重和聚合机制。">同一资源反复触发同类告警，缺少去重和聚合机制。</p>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span>Unique Patterns</span><span class="font-semibold">22</span></div>
+          <div class="flex justify-between"><span>Total Repeated</span><span class="font-semibold">324</span></div>
+          <div class="flex justify-between"><span data-en="Top 1 Freq" data-zh="Top1频率">Top1频率</span><span class="font-semibold">178</span></div>
+          <div class="flex justify-between"><span data-en="Daily Avg" data-zh="日均触发">日均触发</span><span class="font-semibold">5.7</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed Root Causes -->
+    <div class="card p-6">
+      <h3 class="font-bold text-lg mb-6" data-en="Why Do 87.9% of Alerts Self-Recover?" data-zh="为什么87.9%的告警能自己恢复？">为什么87.9%的告警能自己恢复？</h3>
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="p-4 rounded-xl bg-red-50 border border-red-100">
+          <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center text-red-600 font-bold mb-3">1</div>
+          <h4 class="font-bold text-red-900 mb-2" data-en="Thresholds Too Sensitive" data-zh="阈值过于敏感">阈值过于敏感</h4>
+          <p class="text-sm text-red-800" data-en="Bandwidth threshold at >=90% triggers on every business peak. EIP 47.101.222.52 averages 5.7 alerts per day, all auto-recovered." data-zh="带宽阈值设为>=90%，每次业务高峰都触发。EIP 47.101.222.52 平均每天触发5.7次，全部自动恢复。">带宽阈值设为>=90%，每次业务高峰都触发。EIP 47.101.222.52 平均每天触发5.7次，全部自动恢复。</p>
+        </div>
+        <div class="p-4 rounded-xl bg-orange-50 border border-orange-100">
+          <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 font-bold mb-3">2</div>
+          <h4 class="font-bold text-orange-900 mb-2" data-en="Wrong Metrics Chosen" data-zh="监控指标选取不当">监控指标选取不当</h4>
+          <p class="text-sm text-orange-800" data-en="Container/ECI disk and CPU metrics fluctuate naturally. 60 disk alerts on one ECI all auto-recovered - this metric has minimal business impact." data-zh="容器/ECI环境的磁盘和CPU指标天然波动。一个ECI触发60次磁盘告警全部自动恢复，该指标对业务影响微乎其微。">容器/ECI环境的磁盘和CPU指标天然波动。一个ECI触发60次磁盘告警全部自动恢复，该指标对业务影响微乎其微。</p>
+        </div>
+        <div class="p-4 rounded-xl bg-blue-50 border border-blue-100">
+          <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold mb-3">3</div>
+          <h4 class="font-bold text-blue-900 mb-2" data-en="No Duration Filter" data-zh="缺少持续时间过滤">缺少持续时间过滤</h4>
+          <p class="text-sm text-blue-800" data-en="Alerts fire on single-point threshold breach. If duration < 5 minutes before auto-recovery, it's a transient spike, not a real problem." data-zh="告警在阈值被突破的单点瞬间触发。如果持续时间<5分钟就自动恢复，那只是瞬时峰值而非持续问题。">告警在阈值被突破的单点瞬间触发。如果持续时间<5分钟就自动恢复，那只是瞬时峰值而非持续问题。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Part 4: Solution -->
+<section id="solution" class="py-16 bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="section-number bg-green-500 text-white">04</div>
+      <div>
+        <h2 class="text-2xl font-bold" data-en="Smart Noise Reduction" data-zh="智能降噪方案">智能降噪方案</h2>
+        <p class="text-sm text-gray-500" data-en="6 strategies targeting different noise sources" data-zh="6大策略针对不同噪音来源">6大策略针对不同噪音来源</p>
+      </div>
+    </div>
+
+    <!-- Strategy Cards -->
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+      <div class="card p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-red-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+          </div>
+          <div>
+            <h4 class="font-bold" data-en="Auto-Recovery Filter" data-zh="自动恢复过滤">自动恢复过滤</h4>
+            <span class="badge bg-green-100 text-green-700">-70~80%</span>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600 mb-3" data-en="Suppress alerts that auto-recover within 5 minutes. If a resource has 3+ auto-recovery alerts in 7 days, add to watchlist." data-zh="5分钟内自动恢复的告警直接降噪。7天内自动恢复>=3次的资源加入观察列表不再实时通知。">5分钟内自动恢复的告警直接降噪。7天内自动恢复>=3次的资源加入观察列表不再实时通知。</p>
+        <div class="text-xs text-gray-500 font-mono bg-gray-50 rounded p-2" data-en="if duration < 300s: SUPPRESS" data-zh="if duration < 300s: SUPPRESS">if duration < 300s: SUPPRESS</div>
+      </div>
+
+      <div class="card p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+          </div>
+          <div>
+            <h4 class="font-bold" data-en="Notification Split" data-zh="通知类分流">通知类分流</h4>
+            <span class="badge bg-green-100 text-green-700">-8~10%</span>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600 mb-3" data-en="Route email-channel alerts (upgrades, quotas, billing) to a separate 'Info' channel. Never mix with critical alerts." data-zh="将邮件渠道告警（升级、配额、欠费）分流到独立'通知群'，不再与严重告警混在一起。">将邮件渠道告警（升级、配额、欠费）分流到独立'通知群'，不再与严重告警混在一起。</p>
+        <div class="text-xs text-gray-500 font-mono bg-gray-50 rounded p-2">Mail &rarr; Info Channel</div>
+      </div>
+
+      <div class="card p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+          </div>
+          <div>
+            <h4 class="font-bold" data-en="Alert Deduplication" data-zh="重复告警聚合">重复告警聚合</h4>
+            <span class="badge bg-green-100 text-green-700">-10~15%</span>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600 mb-3" data-en="Same resource + same alert type within 15 min: aggregate into one message. Show count and latest value." data-zh="同一资源+同类告警15分钟内聚合为一条消息，显示触发次数和最新值。">同一资源+同类告警15分钟内聚合为一条消息，显示触发次数和最新值。</p>
+        <div class="text-xs text-gray-500 font-mono bg-gray-50 rounded p-2" data-en="5 alerts in 15 min: show once" data-zh="15分钟内5次：只显示1次">15分钟内5次：只显示1次</div>
+      </div>
+
+      <div class="card p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+          </div>
+          <div>
+            <h4 class="font-bold" data-en="Threshold Optimization" data-zh="阈值优化">阈值优化</h4>
+            <span class="badge bg-green-100 text-green-700">-5~10%</span>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600 mb-3" data-en="Raise bandwidth threshold to 95%. Add 'duration >= 3 minutes' condition. This filters 99% of transient spikes." data-zh="带宽阈值从90%提升到95%，增加'持续时间>=3分钟'条件。可过滤99%的瞬时峰值。">带宽阈值从90%提升到95%，增加'持续时间>=3分钟'条件。可过滤99%的瞬时峰值。</p>
+        <div class="text-xs text-gray-500 font-mono bg-gray-50 rounded p-2">value >= 95% AND duration >= 3min</div>
+      </div>
+
+      <div class="card p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </div>
+          <div>
+            <h4 class="font-bold" data-en="Time Window Filter" data-zh="时间窗口过滤">时间窗口过滤</h4>
+            <span class="badge bg-green-100 text-green-700">-2~5%</span>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600 mb-3" data-en="During maintenance windows, suppress non-critical alerts. After hours, delay auto-recovery alerts to next business day." data-zh="维护窗口期间静默非关键告警。非工作时间延迟自动恢复类告警到次日工作时间。">维护窗口期间静默非关键告警。非工作时间延迟自动恢复类告警到次日工作时间。</p>
+        <div class="text-xs text-gray-500 font-mono bg-gray-50 rounded p-2">Maint Window: SUPPRESS</div>
+      </div>
+
+      <div class="card p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </div>
+          <div>
+            <h4 class="font-bold" data-en="Severity Re-grading" data-zh="告警分级">告警分级</h4>
+            <span class="badge bg-green-100 text-green-700">-5~8%</span>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600 mb-3" data-en="Establish P0/P1/P2/P3 levels. P2 (auto-recovered) becomes daily digest instead of real-time notification." data-zh="建立P0/P1/P2/P3分级。P2级（自动恢复）改为每日摘要而非实时通知。">建立P0/P1/P2/P3分级。P2级（自动恢复）改为每日摘要而非实时通知。</p>
+        <div class="text-xs text-gray-500 font-mono bg-gray-50 rounded p-2">P2 &rarr; Daily Digest</div>
+      </div>
+    </div>
+
+    <!-- Alert Level Re-grading Table -->
+    <div class="card p-6">
+      <h3 class="font-bold text-lg mb-4" data-en="Recommended Alert Re-grading" data-zh="建议的告警重新分级">建议的告警重新分级</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-200 text-left text-gray-500">
+              <th class="pb-3 font-medium" data-en="Alert Type" data-zh="告警类型">告警类型</th>
+              <th class="pb-3 font-medium text-center" data-en="Current Level" data-zh="当前分级">当前分级</th>
+              <th class="pb-3 font-medium text-center" data-en="Recommended" data-zh="建议分级">建议分级</th>
+              <th class="pb-3 font-medium" data-en="Reason" data-zh="理由">理由</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-gray-100">
+              <td class="py-3">Bandwidth >=90%</td>
+              <td class="py-3 text-center"><span class="badge bg-red-100 text-red-700">Critical</span></td>
+              <td class="py-3 text-center"><span class="badge bg-yellow-100 text-yellow-700">P2</span></td>
+              <td class="py-3 text-gray-600">100% auto-recovered, transient peaks</td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-3">Disk >=90%</td>
+              <td class="py-3 text-center"><span class="badge bg-red-100 text-red-700">Critical</span></td>
+              <td class="py-3 text-center"><span class="badge bg-yellow-100 text-yellow-700">P2</span></td>
+              <td class="py-3 text-gray-600">95.5% auto-recovered</td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-3">Memory >=90%</td>
+              <td class="py-3 text-center"><span class="badge bg-red-100 text-red-700">Critical</span></td>
+              <td class="py-3 text-center"><span class="badge bg-yellow-100 text-yellow-700">P2</span></td>
+              <td class="py-3 text-gray-600">90% auto-recovered</td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-3">CPU >=90%</td>
+              <td class="py-3 text-center"><span class="badge bg-red-100 text-red-700">Critical</span></td>
+              <td class="py-3 text-center"><span class="badge bg-yellow-100 text-yellow-700">P2</span></td>
+              <td class="py-3 text-gray-600">100% auto-recovered</td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-3">ALB Unhealthy >=1</td>
+              <td class="py-3 text-center"><span class="badge bg-red-100 text-red-700">Critical</span></td>
+              <td class="py-3 text-center"><span class="badge bg-orange-100 text-orange-700">P1</span></td>
+              <td class="py-3 text-gray-600">66.7% auto-recovered but needs attention</td>
+            </tr>
+            <tr class="border-b border-gray-100">
+              <td class="py-3">Quota/Billing/Upgrade</td>
+              <td class="py-3 text-center"><span class="badge bg-blue-100 text-blue-700">Info</span></td>
+              <td class="py-3 text-center"><span class="badge bg-gray-100 text-gray-700">P3</span></td>
+              <td class="py-3 text-gray-600">Notification only, not urgent</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Part 5: Roadmap -->
+<section id="roadmap" class="py-16">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="section-number bg-purple-500 text-white">05</div>
+      <div>
+        <h2 class="text-2xl font-bold" data-en="Implementation Roadmap" data-zh="实施路线图">实施路线图</h2>
+        <p class="text-sm text-gray-500" data-en="3 phases from quick wins to long-term governance" data-zh="从快速见效到长期治理的三阶段计划">从快速见效到长期治理的三阶段计划</p>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-8">
+      <div>
+        <!-- Timeline -->
+        <div class="space-y-8">
+          <div class="roadmap-step">
+            <div class="roadmap-dot"></div>
+            <div class="card p-5">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-bold text-lg" data-en="Phase 1: Quick Wins" data-zh="Phase 1：立即可做">Phase 1：立即可做</h4>
+                <span class="badge bg-blue-100 text-blue-700">1-2 Weeks</span>
+              </div>
+              <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                  <div class="w-5 h-5 rounded bg-red-100 text-red-600 flex items-center justify-center text-xs font-bold mt-0.5">1</div>
+                  <div>
+                    <p class="font-medium text-sm" data-en="Auto-Recovery Filter" data-zh="自动恢复过滤">自动恢复过滤</p>
+                    <p class="text-xs text-gray-500" data-en="Auto-recovered within 5 min -> suppress notification" data-zh="5分钟内自动恢复 -> 不发送通知">5分钟内自动恢复 -> 不发送通知</p>
+                  </div>
+                </div>
+                <div class="flex items-start gap-3">
+                  <div class="w-5 h-5 rounded bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold mt-0.5">2</div>
+                  <div>
+                    <p class="font-medium text-sm" data-en="Email Channel Split" data-zh="邮件渠道分流">邮件渠道分流</p>
+                    <p class="text-xs text-gray-500" data-en="Move notifications to dedicated 'Info' channel" data-zh="将通知类告警移到独立'通知群'">将通知类告警移到独立'通知群'</p>
+                  </div>
+                </div>
+                <div class="flex items-start gap-3">
+                  <div class="w-5 h-5 rounded bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold mt-0.5">3</div>
+                  <div>
+                    <p class="font-medium text-sm" data-en="Top 3 Alert Aggregation" data-zh="Top3告警聚合">Top3告警聚合</p>
+                    <p class="text-xs text-gray-500" data-en="EIP bandwidth, ECI disk, ECI memory: aggregate within 15 min" data-zh="EIP带宽、ECI磁盘、ECI内存：15分钟内聚合">EIP带宽、ECI磁盘、ECI内存：15分钟内聚合</p>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-4 p-3 bg-green-50 rounded-lg text-center">
+                <span class="text-green-800 font-bold text-sm" data-en="Expected: 354/month -> 30-50/month (85% reduction)" data-zh="预期效果：354条/月 -> 30-50条/月（降噪85%）">预期效果：354条/月 -> 30-50条/月（降噪85%）</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="roadmap-step">
+            <div class="roadmap-dot orange"></div>
+            <div class="card p-5">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-bold text-lg" data-en="Phase 2: Short-Term Optimization" data-zh="Phase 2：短期优化">Phase 2：短期优化</h4>
+                <span class="badge bg-orange-100 text-orange-700">1 Month</span>
+              </div>
+              <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                  <div class="w-5 h-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold mt-0.5">1</div>
+                  <div>
+                    <p class="font-medium text-sm" data-en="Threshold Tuning" data-zh="阈值调优">阈值调优</p>
+                    <p class="text-xs text-gray-500" data-en="Bandwidth 90% -> 95%, add duration >= 3 min" data-zh="带宽90% -> 95%，增加持续时间>=3分钟">带宽90% -> 95%，增加持续时间>=3分钟</p>
+                  </div>
+                </div>
+                <div class="flex items-start gap-3">
+                  <div class="w-5 h-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold mt-0.5">2</div>
+                  <div>
+                    <p class="font-medium text-sm" data-en="Severity Re-grading" data-zh="告警分级">告警分级</p>
+                    <p class="text-xs text-gray-500" data-en="Establish P0/P1/P2/P3, P2 -> daily digest" data-zh="建立P0/P1/P2/P3分级，P2改为每日摘要">建立P0/P1/P2/P3分级，P2改为每日摘要</p>
+                  </div>
+                </div>
+                <div class="flex items-start gap-3">
+                  <div class="w-5 h-5 rounded bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold mt-0.5">3</div>
+                  <div>
+                    <p class="font-medium text-sm" data-en="Maintenance Windows" data-zh="维护窗口">维护窗口</p>
+                    <p class="text-xs text-gray-500" data-en="Configure maintenance windows to suppress non-critical alerts" data-zh="配置维护窗口静默非关键告警">配置维护窗口静默非关键告警</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="roadmap-step">
+            <div class="roadmap-dot green"></div>
+            <div class="card p-5">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-bold text-lg" data-en="Phase 3: Long-Term Governance" data-zh="Phase 3：长期治理">Phase 3：长期治理</h4>
+                <span class="badge bg-green-100 text-green-700">3 Months</span>
+              </div>
+              <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                  <div class="w-5 h-5 rounded bg-green-100 text-green-600 flex items-center justify-center text-xs font-bold mt-0.5">1</div>
+                  <div>
+                    <p class="font-medium text-sm" data-en="AIOps Platform" data-zh="AIOps平台">AIOps平台</p>
+                    <p class="text-xs text-gray-500" data-en="Consider Alibaba Cloud Smart Noise Reduction or PagerDuty" data-zh="考虑阿里云智能降噪或PagerDuty">考虑阿里云智能降噪或PagerDuty</p>
+                  </div>
+                </div>
+                <div class="flex items-start gap-3">
+                  <div class="w-5 h-5 rounded bg-green-100 text-green-600 flex items-center justify-center text-xs font-bold mt-0.5">2</div>
+                  <div>
+                    <p class="font-medium text-sm" data-en="Monthly Alert Review" data-zh="月度告警Review">月度告警Review</p>
+                    <p class="text-xs text-gray-500" data-en="Regular review of alert patterns and threshold effectiveness" data-zh="定期review告警模式和阈值有效性">定期review告警模式和阈值有效性</p>
+                  </div>
+                </div>
+                <div class="flex items-start gap-3">
+                  <div class="w-5 h-5 rounded bg-green-100 text-green-600 flex items-center justify-center text-xs font-bold mt-0.5">3</div>
+                  <div>
+                    <p class="font-medium text-sm" data-en="Alert Fatigue KPI" data-zh="告警疲劳KPI">告警疲劳KPI</p>
+                    <p class="text-xs text-gray-500" data-en="Track false-positive rate per team as SRE metric" data-zh="将误报率作为SRE团队的考核指标">将误报率作为SRE团队的考核指标</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <!-- Expected Impact Chart -->
+        <div class="card p-6 mb-6">
+          <h3 class="font-bold text-lg mb-4" data-en="Expected Impact" data-zh="预期收益">预期收益</h3>
+          <div class="chart-container" style="height:320px"><canvas id="impactChart"></canvas></div>
+        </div>
+
+        <!-- Before/After -->
+        <div class="card p-6">
+          <h3 class="font-bold text-lg mb-4" data-en="Before vs After" data-zh="降噪前后对比">降噪前后对比</h3>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+              <span class="text-sm text-red-800" data-en="Monthly Alerts" data-zh="月告警总量">月告警总量</span>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-red-600">354</span>
+                <span class="text-gray-400">&rarr;</span>
+                <span class="font-bold text-green-600">30-50</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+              <span class="text-sm text-orange-800" data-en="Actionable Rate" data-zh="有效告警占比">有效告警占比</span>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-orange-600">~15%</span>
+                <span class="text-gray-400">&rarr;</span>
+                <span class="font-bold text-green-600">~70%</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+              <span class="text-sm text-blue-800" data-en="Repeated Alerts" data-zh="重复告警占比">重复告警占比</span>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-blue-600">91.5%</span>
+                <span class="text-gray-400">&rarr;</span>
+                <span class="font-bold text-green-600"><20%</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+              <span class="text-sm text-purple-800" data-en="Engineer Alert Load" data-zh="工程师告警负载">工程师告警负载</span>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-purple-600">High</span>
+                <span class="text-gray-400">&rarr;</span>
+                <span class="font-bold text-green-600">Low</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Q&A Panel -->
+<section id="qa" class="py-16 bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="section-number bg-gray-700 text-white">Q&A</div>
+      <div>
+        <h2 class="text-2xl font-bold" data-en="Common Questions" data-zh="常见问题">常见问题</h2>
+        <p class="text-sm text-gray-500" data-en="Engineer questions about noise reduction" data-zh="工程师关心的降噪问题">工程师关心的降噪问题</p>
+      </div>
+    </div>
+
+    <div class="mb-6">
+      <input type="text" id="qa-search" placeholder="Search questions..." class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" onkeyup="filterQA(this.value)">
+    </div>
+
+    <div class="space-y-3" id="qa-list">
+      <div class="qa-item card p-4 cursor-pointer" data-keywords="auto-recovery filter suppress miss miss real alert" onclick="toggleQA(this)">
+        <div class="flex items-center justify-between">
+          <h4 class="font-medium" data-en="Q: Will filtering auto-recovery alerts cause us to miss real issues?" data-zh="Q：过滤自动恢复告警会不会漏掉真正的问题？">Q：过滤自动恢复告警会不会漏掉真正的问题？</h4>
+          <svg class="w-5 h-5 text-gray-400 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </div>
+        <div class="collapsible-content mt-3 text-sm text-gray-600">
+          <p data-en="A: No. Our data shows 311 alerts auto-recovered with ZERO human intervention. If an alert auto-recovers within 5 minutes, it's a transient spike, not a real issue. For safety, we only suppress alerts that (1) auto-recover within 5 min AND (2) the resource has 3+ auto-recovery alerts in 7 days. Persistent issues will still trigger alerts that don't auto-recover." data-zh="A：不会。数据显示311条自动恢复告警中没有任何人进行过处理。如果告警在5分钟内自动恢复，那只是瞬时峰值而非真正的问题。为了安全，我们只抑制同时满足两个条件的告警：(1) 5分钟内自动恢复，且 (2) 该资源7天内>=3次同类自动恢复。持续存在的问题仍然会触发不会自动恢复的告警。">A：不会。数据显示311条自动恢复告警中没有任何人进行过处理。如果告警在5分钟内自动恢复，那只是瞬时峰值而非真正的问题。为了安全，我们只抑制同时满足两个条件的告警：(1) 5分钟内自动恢复，且 (2) 该资源7天内>=3次同类自动恢复。持续存在的问题仍然会触发不会自动恢复的告警。</p>
+        </div>
+      </div>
+
+      <div class="qa-item card p-4 cursor-pointer" data-keywords="threshold 90% 95% why change bandwidth" onclick="toggleQA(this)">
+        <div class="flex items-center justify-between">
+          <h4 class="font-medium" data-en="Q: Why raise the bandwidth threshold from 90% to 95%?" data-zh="Q：为什么把带宽阈值从90%提升到95%？">Q：为什么把带宽阈值从90%提升到95%？</h4>
+          <svg class="w-5 h-5 text-gray-400 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </div>
+        <div class="collapsible-content mt-3 text-sm text-gray-600">
+          <p data-en="A: EIP 47.101.222.52 triggered 178 bandwidth alerts in 31 days - all auto-recovered. That's 5.7 alerts per day. At 90%, normal business peaks trigger false alarms. Raising to 95% with a 3-minute duration filter will catch sustained bandwidth issues while filtering transient peaks. If 95% proves too high after monitoring, we can adjust." data-zh="A：EIP 47.101.222.52在31天内触发了178次带宽告警，全部自动恢复，平均每天5.7次。90%的阈值意味着正常业务高峰都会触发误报。提升到95%并加上3分钟持续时间条件，可以捕捉到持续的带宽问题，同时过滤掉瞬时峰值。如果95%经过监控后证明过高，可以再调整。">A：EIP 47.101.222.52在31天内触发了178次带宽告警，全部自动恢复，平均每天5.7次。90%的阈值意味着正常业务高峰都会触发误报。提升到95%并加上3分钟持续时间条件，可以捕捉到持续的带宽问题，同时过滤掉瞬时峰值。如果95%经过监控后证明过高，可以再调整。</p>
+        </div>
+      </div>
+
+      <div class="qa-item card p-4 cursor-pointer" data-keywords="deduplication aggregate 15 minutes how" onclick="toggleQA(this)">
+        <div class="flex items-center justify-between">
+          <h4 class="font-medium" data-en="Q: How does the 15-minute deduplication work?" data-zh="Q：15分钟聚合去重具体怎么实现？">Q：15分钟聚合去重具体怎么实现？</h4>
+          <svg class="w-5 h-5 text-gray-400 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </div>
+        <div class="collapsible-content mt-3 text-sm text-gray-600">
+          <p data-en="A: In CloudCare (or your alert gateway), add a dedup key = resource_id + alert_type. Within a 15-minute window, only send ONE notification per dedup key. The notification includes: 'This alert fired X times in the last 15 minutes. Latest value: Y%.' If the alert fires more than 3 times in 15 minutes, escalate to team lead." data-zh="A：在CloudCare（或告警网关层）增加去重键 = 资源ID + 告警类型。在15分钟窗口期内，每个去重键只发送一次通知。通知内容包含：'该告警过去15分钟内触发X次，最新值Y%。' 如果15分钟内触发超过3次，则升级到团队负责人。">A：在CloudCare（或告警网关层）增加去重键 = 资源ID + 告警类型。在15分钟窗口期内，每个去重键只发送一次通知。通知内容包含：'该告警过去15分钟内触发X次，最新值Y%。' 如果15分钟内触发超过3次，则升级到团队负责人。</p>
+        </div>
+      </div>
+
+      <div class="qa-item card p-4 cursor-pointer" data-keywords="maintenance window downtime suppress" onclick="toggleQA(this)">
+        <div class="flex items-center justify-between">
+          <h4 class="font-medium" data-en="Q: What if an issue occurs during a maintenance window?" data-zh="Q：维护窗口期间如果出问题怎么办？">Q：维护窗口期间如果出问题怎么办？</h4>
+          <svg class="w-5 h-5 text-gray-400 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </div>
+        <div class="collapsible-content mt-3 text-sm text-gray-600">
+          <p data-en="A: Maintenance window suppression only applies to P2/P3 level alerts (auto-recovery, resource usage). P0/P1 alerts (service down, security incident) are NEVER suppressed. This ensures real emergencies are always notified immediately, while routine maintenance noise is reduced." data-zh="A：维护窗口静默只作用于P2/P3级告警（自动恢复类、资源使用率类）。P0/P1级告警（服务不可用、安全事件）永远不会被静默。这确保了真正的紧急情况始终会立即通知，而常规维护噪音被过滤。">A：维护窗口静默只作用于P2/P3级告警（自动恢复类、资源使用率类）。P0/P1级告警（服务不可用、安全事件）永远不会被静默。这确保了真正的紧急情况始终会立即通知，而常规维护噪音被过滤。</p>
+        </div>
+      </div>
+
+      <div class="qa-item card p-4 cursor-pointer" data-keywords="team metric KPI alert fatigue measure" onclick="toggleQA(this)">
+        <div class="flex items-center justify-between">
+          <h4 class="font-medium" data-en="Q: How do we measure success after implementing noise reduction?" data-zh="Q：实施降噪后如何衡量效果？">Q：实施降噪后如何衡量效果？</h4>
+          <svg class="w-5 h-5 text-gray-400 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </div>
+        <div class="collapsible-content mt-3 text-sm text-gray-600">
+          <p data-en="A: Track these KPIs monthly: (1) Total alerts per month - target < 50. (2) Auto-recovery rate - target < 30%. (3) Actionable alert rate (alerts requiring human action / total alerts) - target > 70%. (4) Mean Time To Response (MTTR) for real incidents - should decrease. (5) Engineer survey on alert fatigue - 1-5 scale, target > 4." data-zh="A：每月跟踪以下KPI：(1) 月告警总量 - 目标<50条。(2) 自动恢复率 - 目标<30%。(3) 有效告警占比（需要人工处理的告警/总告警）- 目标>70%。(4) 真实事件的平均响应时间(MTTR) - 应该下降。(5) 工程师告警疲劳度调研 - 1-5分制，目标>4分。">A：每月跟踪以下KPI：(1) 月告警总量 - 目标<50条。(2) 自动恢复率 - 目标<30%。(3) 有效告警占比（需要人工处理的告警/总告警）- 目标>70%。(4) 真实事件的平均响应时间(MTTR) - 应该下降。(5) 工程师告警疲劳度调研 - 1-5分制，目标>4分。</p>
+        </div>
+      </div>
+
+      <div class="qa-item card p-4 cursor-pointer" data-keywords="CloudCare DingTalk implement how configuration" onclick="toggleQA(this)">
+        <div class="flex items-center justify-between">
+          <h4 class="font-medium" data-en="Q: Where should we implement these filters - CloudCare or DingTalk?" data-zh="Q：这些过滤规则应该在哪里实现 - CloudCare还是钉钉？">Q：这些过滤规则应该在哪里实现 - CloudCare还是钉钉？</h4>
+          <svg class="w-5 h-5 text-gray-400 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </div>
+        <div class="collapsible-content mt-3 text-sm text-gray-600">
+          <p data-en="A: Best practice is to implement at the ALERT GATEWAY layer (between CloudCare and DingTalk). This way: (1) All alerts are still logged in CloudCare for audit. (2) Suppression rules are centralized and version-controlled. (3) Different teams can have different routing rules. If your gateway doesn't support this, implement as a middleware service that receives CloudCare webhooks, applies filters, then forwards to DingTalk." data-zh="A：最佳实践是在告警网关层实现（CloudCare和钉钉之间）。这样：(1) 所有告警仍会在CloudCare中记录供审计。(2) 抑制规则集中管理且可版本控制。(3) 不同团队可以有不同的路由规则。如果你的网关不支持，可以作为中间件服务实现：接收CloudCare webhook，应用过滤规则，再转发到钉钉。">A：最佳实践是在告警网关层实现（CloudCare和钉钉之间）。这样：(1) 所有告警仍会在CloudCare中记录供审计。(2) 抑制规则集中管理且可版本控制。(3) 不同团队可以有不同的路由规则。如果你的网关不支持，可以作为中间件服务实现：接收CloudCare webhook，应用过滤规则，再转发到钉钉。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Demo Panel -->
+<section id="demo" class="py-16">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="section-number bg-indigo-500 text-white">Demo</div>
+      <div>
+        <h2 class="text-2xl font-bold" data-en="Interactive Demo" data-zh="交互式演示">交互式演示</h2>
+        <p class="text-sm text-gray-500" data-en="Simulate how alerts are filtered" data-zh="模拟告警过滤过程">模拟告警过滤过程</p>
+      </div>
+    </div>
+
+    <div class="card overflow-hidden">
+      <div class="flex border-b border-gray-200">
+        <button class="flex-1 py-3 px-4 text-sm font-medium border-b-2 border-blue-500 text-blue-600 bg-blue-50" onclick="switchTab('tab-filter')" id="btn-tab-filter" data-en="Auto-Recovery Filter" data-zh="自动恢复过滤">自动恢复过滤</button>
+        <button class="flex-1 py-3 px-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700" onclick="switchTab('tab-dedup')" id="btn-tab-dedup" data-en="Deduplication" data-zh="去重聚合">去重聚合</button>
+        <button class="flex-1 py-3 px-4 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700" onclick="switchTab('tab-route')" id="btn-tab-route" data-en="Routing" data-zh="智能路由">智能路由</button>
+      </div>
+
+      <div id="tab-filter" class="tab-content active p-6">
+        <div class="grid md:grid-cols-2 gap-6">
+          <div>
+            <h4 class="font-bold mb-3 text-red-600" data-en="Before: Raw Alerts" data-zh="过滤前：原始告警">过滤前：原始告警</h4>
+            <div class="space-y-2 text-sm">
+              <div class="p-3 bg-red-50 border border-red-200 rounded-lg"><div class="font-medium">[CRITICAL] EIP bandwidth 92%</div><div class="text-gray-500">09:01:23 - Auto-recovered 09:03:45</div></div>
+              <div class="p-3 bg-red-50 border border-red-200 rounded-lg"><div class="font-medium">[CRITICAL] EIP bandwidth 94%</div><div class="text-gray-500">11:23:45 - Auto-recovered 11:25:12</div></div>
+              <div class="p-3 bg-red-50 border border-red-200 rounded-lg"><div class="font-medium">[CRITICAL] EIP bandwidth 91%</div><div class="text-gray-500">14:05:33 - Auto-recovered 14:07:01</div></div>
+              <div class="p-3 bg-red-50 border border-red-200 rounded-lg"><div class="font-medium">[CRITICAL] EIP bandwidth 93%</div><div class="text-gray-500">16:42:18 - Auto-recovered 16:44:55</div></div>
+              <div class="p-3 bg-red-50 border border-red-200 rounded-lg"><div class="font-medium">[CRITICAL] EIP bandwidth 95%</div><div class="text-gray-500">18:12:07 - Auto-recovered 18:15:22</div></div>
+            </div>
+          </div>
+          <div>
+            <h4 class="font-bold mb-3 text-green-600" data-en="After: Filter Applied" data-zh="过滤后：应用规则">过滤后：应用规则</h4>
+            <div class="space-y-2 text-sm">
+              <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-400 line-through"><div class="font-medium">[SUPPRESSED] EIP bandwidth 92%</div><div>Duration 2m 22s < 5min -> no notification</div></div>
+              <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-400 line-through"><div class="font-medium">[SUPPRESSED] EIP bandwidth 94%</div><div>Duration 1m 27s < 5min -> no notification</div></div>
+              <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-400 line-through"><div class="font-medium">[SUPPRESSED] EIP bandwidth 91%</div><div>Duration 1m 28s < 5min -> no notification</div></div>
+              <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-400 line-through"><div class="font-medium">[SUPPRESSED] EIP bandwidth 93%</div><div>Duration 2m 37s < 5min -> no notification</div></div>
+              <div class="p-3 bg-green-50 border border-green-200 rounded-lg"><div class="font-medium text-green-800">[NOTIFIED] EIP bandwidth 95%</div><div class="text-green-600">Duration 3m 15s >= 5min -> NOTIFY</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800" data-en="Result: 4 out of 5 alerts suppressed. Only the sustained issue (duration > 5 min) triggers notification." data-zh="结果：5条告警中4条被抑制。只有持续时间超过5分钟的问题才会触发通知。">结果：5条告警中4条被抑制。只有持续时间超过5分钟的问题才会触发通知。</div>
+      </div>
+
+      <div id="tab-dedup" class="tab-content p-6">
+        <div class="grid md:grid-cols-2 gap-6">
+          <div>
+            <h4 class="font-bold mb-3 text-red-600" data-en="Before: Alert Flood" data-zh="聚合前：告警轰炸">聚合前：告警轰炸</h4>
+            <div class="space-y-2 text-sm">
+              <div class="p-3 bg-red-50 border border-red-200 rounded-lg"><div class="font-medium">[09:00] ECI disk 91%</div></div>
+              <div class="p-3 bg-red-50 border border-red-200 rounded-lg"><div class="font-medium">[09:03] ECI disk 92%</div></div>
+              <div class="p-3 bg-red-50 border border-red-200 rounded-lg"><div class="font-medium">[09:07] ECI disk 91%</div></div>
+              <div class="p-3 bg-red-50 border border-red-200 rounded-lg"><div class="font-medium">[09:11] ECI disk 93%</div></div>
+              <div class="p-3 bg-red-50 border border-red-200 rounded-lg"><div class="font-medium">[09:15] ECI disk 92%</div></div>
+            </div>
+          </div>
+          <div>
+            <h4 class="font-bold mb-3 text-green-600" data-en="After: Aggregated" data-zh="聚合后：合并通知">聚合后：合并通知</h4>
+            <div class="p-4 bg-green-50 border border-green-200 rounded-lg text-sm">
+              <div class="font-bold text-green-800 mb-2">[AGGREGATED] ECI Disk Alert</div>
+              <div class="text-green-700 space-y-1">
+                <p>This alert fired <strong>5 times</strong> in the last 15 minutes</p>
+                <p>First: 09:00, Latest: 09:15</p>
+                <p>Highest value: 93%</p>
+                <p>Current status: Auto-recovered</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-route" class="tab-content p-6">
+        <div class="grid md:grid-cols-3 gap-4">
+          <div class="p-4 bg-red-50 border border-red-200 rounded-lg text-center">
+            <div class="font-bold text-red-800 mb-2">P0 - Emergency</div>
+            <div class="text-sm text-red-700 mb-3">Service Down / Data Loss / Security</div>
+            <div class="text-xs bg-red-100 rounded p-2 text-red-800">Phone + SMS + DingTalk</div>
+          </div>
+          <div class="p-4 bg-orange-50 border border-orange-200 rounded-lg text-center">
+            <div class="font-bold text-orange-800 mb-2">P1 - Important</div>
+            <div class="text-sm text-orange-700 mb-3">Performance / Sustained Resource Issue</div>
+            <div class="text-xs bg-orange-100 rounded p-2 text-orange-800">DingTalk + Page Duty</div>
+          </div>
+          <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
+            <div class="font-bold text-yellow-800 mb-2">P2 - General</div>
+            <div class="text-sm text-yellow-700 mb-3">Auto-Recovered / Threshold Breach</div>
+            <div class="text-xs bg-yellow-100 rounded p-2 text-yellow-800">Daily Digest Email</div>
+          </div>
+        </div>
+        <div class="grid md:grid-cols-3 gap-4 mt-4">
+          <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
+            <div class="font-bold text-gray-800 mb-2">P3 - Info</div>
+            <div class="text-sm text-gray-700 mb-3">Upgrade / Quota / Billing</div>
+            <div class="text-xs bg-gray-100 rounded p-2 text-gray-800">Info Channel (Async)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="py-8 border-t border-gray-200">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="text-sm text-gray-500">
+        <span data-en="Data Period" data-zh="数据周期">数据周期</span>: 2026-04-25 ~ 2026-05-25 | <span data-en="Total Alerts" data-zh="告警总量">告警总量</span>: 354
+      </div>
+      <div class="text-sm text-gray-400">
+        <span data-en="Generated by" data-zh="生成于">生成于</span> QoderWork AI | <span data-en="For Internal Engineering Review" data-zh="供工程师内部review">供工程师内部review</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Language toggle
+let currentLang = 'zh';
+function toggleLang() {
+  currentLang = currentLang === 'en' ? 'zh' : 'en';
+  document.body.className = currentLang === 'en' ? 'lang-en' : 'lang-zh';
+  document.getElementById('lang-label').textContent = currentLang === 'en' ? 'ZH' : 'EN';
+}
+
+// Carousel
+let currentSlide = 0;
+const slides = document.querySelectorAll('.carousel-slide');
+const dots = document.querySelectorAll('.slide-dot');
+let carouselInterval;
+
+function showSlide(n) {
+  slides.forEach((s, i) => {
+    s.classList.toggle('active', i === n);
+    dots[i].classList.toggle('bg-white/60', i === n);
+    dots[i].classList.toggle('bg-white/30', i !== n);
+  });
+  currentSlide = n;
+}
+function nextSlide() { showSlide((currentSlide + 1) % slides.length); }
+function prevSlide() { showSlide((currentSlide - 1 + slides.length) % slides.length); }
+function goToSlide(n) { showSlide(n); resetCarousel(); }
+function resetCarousel() { clearInterval(carouselInterval); carouselInterval = setInterval(nextSlide, 4000); }
+
+const carouselEl = document.getElementById('hero-carousel');
+carouselEl.addEventListener('mouseenter', () => clearInterval(carouselInterval));
+carouselEl.addEventListener('mouseleave', resetCarousel);
+resetCarousel();
+
+// Q&A
+function toggleQA(el) {
+  const content = el.querySelector('.collapsible-content');
+  const chevron = el.querySelector('.chevron');
+  content.classList.toggle('open');
+  chevron.classList.toggle('rotated');
+}
+function filterQA(keyword) {
+  const items = document.querySelectorAll('#qa-list .qa-item');
+  const k = keyword.toLowerCase();
+  items.forEach(item => {
+    const text = (item.textContent + ' ' + (item.dataset.keywords || '')).toLowerCase();
+    item.style.display = text.includes(k) ? '' : 'none';
+  });
+}
+
+// Tabs
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  document.querySelectorAll('[id^="btn-tab-"]').forEach(b => {
+    b.classList.remove('border-blue-500', 'text-blue-600', 'bg-blue-50');
+    b.classList.add('border-transparent', 'text-gray-500');
+  });
+  const btn = document.getElementById('btn-' + tabId);
+  btn.classList.remove('border-transparent', 'text-gray-500');
+  btn.classList.add('border-blue-500', 'text-blue-600', 'bg-blue-50');
+}
+
+// Charts
+Chart.defaults.font.family = "'Inter', 'Noto Sans SC', sans-serif";
+
+// Status Chart
+new Chart(document.getElementById('statusChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Auto-Recovered', 'Manual Recovery', 'Pending', 'In Progress'],
+    datasets: [{
+      data: [311, 34, 7, 2],
+      backgroundColor: ['#10B981', '#F59E0B', '#8B5CF6', '#3B82F6'],
+      borderWidth: 0
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { size: 11 } } }
+    },
+    cutout: '65%'
+  }
+});
+
+// Channel Chart
+new Chart(document.getElementById('channelChart'), {
+  type: 'bar',
+  data: {
+    labels: ['CloudMonitor', 'Email', 'Cloud Events'],
+    datasets: [{
+      label: 'Auto-Recovered',
+      data: [311, 0, 0],
+      backgroundColor: '#10B981',
+      borderRadius: 4
+    }, {
+      label: 'Manual/Other',
+      data: [9, 29, 5],
+      backgroundColor: '#F59E0B',
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: { stacked: true, grid: { display: false } },
+      y: { stacked: true, beginAtZero: true, grid: { color: '#F1F5F9' } }
+    },
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { size: 11 } } }
+    }
+  }
+});
+
+// Type Chart
+new Chart(document.getElementById('typeChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Bandwidth', 'Disk', 'Memory', 'CPU', 'Quota', 'WAF', 'ALB', 'Others'],
+    datasets: [{
+      label: 'Alert Count',
+      data: [188, 67, 30, 22, 8, 6, 6, 27],
+      backgroundColor: ['#EF4444', '#F97316', '#F59E0B', '#3B82F6', '#8B5CF6', '#10B981', '#06B6D4', '#9CA3AF'],
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'y',
+    scales: {
+      x: { beginAtZero: true, grid: { color: '#F1F5F9' } },
+      y: { grid: { display: false } }
+    },
+    plugins: {
+      legend: { display: false }
+    }
+  }
+});
+
+// Impact Chart
+new Chart(document.getElementById('impactChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Before', 'After Phase 1', 'After Phase 2', 'Target'],
+    datasets: [{
+      label: 'Monthly Alerts',
+      data: [354, 50, 35, 30],
+      backgroundColor: ['#EF4444', '#F59E0B', '#3B82F6', '#10B981'],
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: { beginAtZero: true, grid: { color: '#F1F5F9' } },
+      x: { grid: { display: false } }
+    },
+    plugins: {
+      legend: { display: false }
+    }
+  }
+});
+</script>
+</body>
+</html>
