@@ -36,7 +36,7 @@
   .accent-blue { background: var(--alibaba-blue); }
   .accent-green { background: var(--success); }
   .accent-red { background: var(--danger); }
-  .sticky-nav { backdrop-filter: blur(16px); background: rgba(255,255,255,0.92); }
+  .sticky-nav { display: none !important; }
   .section-number { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
   .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
   .carousel-slide { display: none; animation: fadeIn 0.6s ease; }
@@ -173,7 +173,8 @@
           <button onclick="showPage('settings')" id="nav-settings" class="nav-link-auth px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-1.5"><i class="fas fa-cog text-xs"></i> 设置</button>
         </nav>
         <span id="welcomeName" class="text-xs text-slate-500 mr-2"></span>
-        <button onclick="doLogout()" class="px-2 py-1 text-xs text-slate-400 hover:text-red-500" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
+        <button onclick="toggleLang()" class="px-2 py-1 text-xs font-medium text-slate-500 hover:text-slate-800 bg-slate-100 rounded-full" title="Switch Language"><span id="lang-label">EN</span></button>
+        <button onclick="doLogout()" class="px-2.5 py-1.5 text-xs font-medium text-red-500 hover:text-white hover:bg-red-500 rounded-lg transition" title="Logout"><i class="fas fa-sign-out-alt mr-1"></i>Log out</button>
       </div>
     </div>
   </header>
@@ -184,6 +185,16 @@
     <button onclick="showPage('accounts')" class="nav-link-auth text-sm font-medium whitespace-nowrap py-1 flex items-center gap-1"><i class="fas fa-users text-xs"></i> 账户管理</button>
     <button onclick="showPage('logs')" class="nav-link-auth text-sm font-medium whitespace-nowrap py-1 flex items-center gap-1"><i class="fas fa-list-alt text-xs"></i> 日志</button>
     <button onclick="showPage('settings')" class="nav-link-auth text-sm font-medium whitespace-nowrap py-1 flex items-center gap-1"><i class="fas fa-cog text-xs"></i> 设置</button>
+  </div>
+
+  <!-- Section links sub-nav (visible on dashboard) -->
+  <div id="sectionNav" class="bg-slate-50 border-b border-slate-200 px-4 py-1.5 flex items-center gap-1 overflow-x-auto">
+    <a href="#overview" class="px-2.5 py-1 rounded-md text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-white transition whitespace-nowrap" data-en="Overview" data-zh="总览">总览</a>
+    <a href="#classification" class="px-2.5 py-1 rounded-md text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-white transition whitespace-nowrap" data-en="Classification" data-zh="分类">分类</a>
+    <a href="#rootcause" class="px-2.5 py-1 rounded-md text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-white transition whitespace-nowrap" data-en="Root Cause" data-zh="根因">根因</a>
+    <a href="#solution" class="px-2.5 py-1 rounded-md text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-white transition whitespace-nowrap" data-en="Solution" data-zh="方案">方案</a>
+    <a href="#roadmap" class="px-2.5 py-1 rounded-md text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-white transition whitespace-nowrap" data-en="Roadmap" data-zh="路线图">路线图</a>
+    <a href="#qa" class="px-2.5 py-1 rounded-md text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-white transition whitespace-nowrap" data-en="Q&A" data-zh="问答">问答</a>
   </div>
 
   <!-- Toast -->
@@ -221,7 +232,7 @@
 </nav>
 
 <!-- Hero Section -->
-<section class="hero-gradient pt-24 pb-16 text-white relative overflow-hidden">
+<section class="hero-gradient pt-12 pb-16 text-white relative overflow-hidden">
   <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 20% 50%, white 1px, transparent 1px); background-size: 40px 40px;"></div>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
     <div class="flex flex-col lg:flex-row items-center gap-12">
@@ -1685,24 +1696,30 @@ function showPage(page) {
   });
   document.querySelectorAll('.nav-link-auth').forEach(n => n.classList.remove('active'));
 
+  const sectionNav = document.getElementById('sectionNav');
+
   if (page === 'dashboard') {
     document.getElementById('dashboardPage').classList.add('active');
     const nav = document.getElementById('nav-dashboard');
     if (nav) nav.classList.add('active');
+    if (sectionNav) sectionNav.style.display = 'flex';
   } else if (page === 'accounts') {
     document.getElementById('accountsPage').classList.add('active');
     const nav = document.getElementById('nav-accounts');
     if (nav) nav.classList.add('active');
+    if (sectionNav) sectionNav.style.display = 'none';
     renderAccounts();
   } else if (page === 'logs') {
     document.getElementById('logsPage').classList.add('active');
     const nav = document.getElementById('nav-logs');
     if (nav) nav.classList.add('active');
+    if (sectionNav) sectionNav.style.display = 'none';
     renderLogs();
   } else if (page === 'settings') {
     document.getElementById('settingsPage').classList.add('active');
     const nav = document.getElementById('nav-settings');
     if (nav) nav.classList.add('active');
+    if (sectionNav) sectionNav.style.display = 'none';
   }
 }
 window.showPage = showPage;
