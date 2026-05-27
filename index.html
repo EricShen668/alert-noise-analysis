@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -166,10 +167,10 @@
           <span id="connText">Local</span>
         </span>
         <nav class="hidden sm:flex items-center space-x-1 mr-2">
-          <button onclick="showPage('dashboard')" id="nav-dashboard" class="nav-link-auth active px-3 py-1.5 text-xs font-medium rounded-lg">报告</button>
-          <button onclick="showPage('accounts')" id="nav-accounts" class="nav-link-auth px-3 py-1.5 text-xs font-medium rounded-lg">账户</button>
-          <button onclick="showPage('logs')" id="nav-logs" class="nav-link-auth px-3 py-1.5 text-xs font-medium rounded-lg">日志</button>
-          <button onclick="showPage('settings')" id="nav-settings" class="nav-link-auth px-3 py-1.5 text-xs font-medium rounded-lg">设置</button>
+          <button onclick="showPage('dashboard')" id="nav-dashboard" class="nav-link-auth active px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-1.5"><i class="fas fa-chart-pie text-xs"></i> 报告</button>
+          <button onclick="showPage('accounts')" id="nav-accounts" class="nav-link-auth px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-1.5"><i class="fas fa-users text-xs"></i> 账户管理</button>
+          <button onclick="showPage('logs')" id="nav-logs" class="nav-link-auth px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-1.5"><i class="fas fa-list-alt text-xs"></i> 日志</button>
+          <button onclick="showPage('settings')" id="nav-settings" class="nav-link-auth px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-1.5"><i class="fas fa-cog text-xs"></i> 设置</button>
         </nav>
         <span id="welcomeName" class="text-xs text-slate-500 mr-2"></span>
         <button onclick="doLogout()" class="px-2 py-1 text-xs text-slate-400 hover:text-red-500" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
@@ -179,10 +180,10 @@
 
   <!-- Mobile nav -->
   <div class="sm:hidden bg-white border-b border-slate-200 px-4 py-2 flex space-x-4 overflow-x-auto">
-    <button onclick="showPage('dashboard')" class="nav-link-auth text-xs font-medium whitespace-nowrap py-1">报告</button>
-    <button onclick="showPage('accounts')" class="nav-link-auth text-xs font-medium whitespace-nowrap py-1">账户</button>
-    <button onclick="showPage('logs')" class="nav-link-auth text-xs font-medium whitespace-nowrap py-1">日志</button>
-    <button onclick="showPage('settings')" class="nav-link-auth text-xs font-medium whitespace-nowrap py-1">设置</button>
+    <button onclick="showPage('dashboard')" class="nav-link-auth text-sm font-medium whitespace-nowrap py-1 flex items-center gap-1"><i class="fas fa-chart-pie text-xs"></i> 报告</button>
+    <button onclick="showPage('accounts')" class="nav-link-auth text-sm font-medium whitespace-nowrap py-1 flex items-center gap-1"><i class="fas fa-users text-xs"></i> 账户管理</button>
+    <button onclick="showPage('logs')" class="nav-link-auth text-sm font-medium whitespace-nowrap py-1 flex items-center gap-1"><i class="fas fa-list-alt text-xs"></i> 日志</button>
+    <button onclick="showPage('settings')" class="nav-link-auth text-sm font-medium whitespace-nowrap py-1 flex items-center gap-1"><i class="fas fa-cog text-xs"></i> 设置</button>
   </div>
 
   <!-- Toast -->
@@ -1364,12 +1365,47 @@ new Chart(document.getElementById('impactChart'), {
 <!-- Auth Module JavaScript -->
 <script>
 // ===== Auth Module Configuration =====
+const SUPABASE_CONFIG = {
+  url: 'https://lbdhwschqjcqwddtldry.supabase.co',
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZGh3c2NocWpjcXdkZHRsZHJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0OTA0MDksImV4cCI6MjA5NTA2NjQwOX0.MjmmoEc583qYHnjYZinMJ0KtiueX5Mt7YNnR8kaLkBI'
+};
+
 const SESSION_DURATION = 8 * 60 * 60 * 1000;
 const LS_ACCOUNTS = 'alertnoise_accounts_v1';
 const LS_LOGS = 'alertnoise_logs_v1';
 const LS_SESSION = 'alertnoise_session_v1';
 
 let currentUser = null;
+let supabase = null;
+let useSupabase = false;
+
+// ===== Supabase Integration =====
+async function initSupabase() {
+  if (!window.supabase || !SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) return false;
+  try {
+    supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, { auth: { persistSession: false } });
+    const { error } = await supabase.from('accounts').select('username').limit(1);
+    useSupabase = !error || error.code === 'PGRST116' || error.code === '42P01';
+  } catch(e) { useSupabase = false; }
+  updateDbStatus();
+  return useSupabase;
+}
+
+function updateDbStatus() {
+  const dot = document.getElementById('connDot');
+  const text = document.getElementById('connText');
+  const footer = document.getElementById('footerStorage');
+
+  if (useSupabase) {
+    if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
+    if (text) text.textContent = 'Cloud';
+    if (footer) footer.textContent = 'Supabase Cloud';
+  } else {
+    if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-400';
+    if (text) text.textContent = 'Local';
+    if (footer) footer.textContent = 'localStorage';
+  }
+}
 
 // ===== Password Hashing =====
 async function sha256(str) {
@@ -1396,19 +1432,42 @@ function clearSession() {
 }
 
 // ===== Storage Layer =====
-function saveAccounts(accs) {
+async function saveAccounts(accs) {
+  if (useSupabase && supabase) {
+    for (const a of accs) {
+      await supabase.from('accounts').upsert({
+        username: a.username, password_hash: a.passwordHash, role: a.role, created_at: a.createdAt
+      }, { onConflict: 'username' });
+    }
+  }
   localStorage.setItem(LS_ACCOUNTS, JSON.stringify(accs));
 }
 
-function loadAccounts() {
+async function loadAccounts() {
+  if (useSupabase && supabase) {
+    const { data, error } = await supabase.from('accounts').select('*');
+    if (!error && data && data.length) {
+      return data.map(d => ({ username: d.username, passwordHash: d.password_hash, role: d.role, createdAt: d.created_at }));
+    }
+  }
   try { return JSON.parse(localStorage.getItem(LS_ACCOUNTS)) || []; } catch(e) { return []; }
 }
 
-function saveLogs(logs) {
+async function saveLogs(logs) {
+  if (useSupabase && supabase) {
+    const rows = logs.map(l => ({ time: l.time, username: l.username, action: l.action, device: l.device, result: l.result }));
+    await supabase.from('logs').insert(rows);
+  }
   localStorage.setItem(LS_LOGS, JSON.stringify(logs));
 }
 
-function loadLogs() {
+async function loadLogs() {
+  if (useSupabase && supabase) {
+    const { data, error } = await supabase.from('logs').select('*').order('id', { ascending: false }).limit(200);
+    if (!error && data) {
+      return data.map(d => ({ id: d.id, time: d.time, username: d.username, action: d.action, device: d.device, result: d.result }));
+    }
+  }
   try { return JSON.parse(localStorage.getItem(LS_LOGS)) || []; } catch(e) { return []; }
 }
 
@@ -1419,7 +1478,7 @@ async function doLogin() {
   const errEl = document.getElementById('loginError');
   if (!username || !password) { errEl.textContent = '请输入用户名和密码'; errEl.classList.remove('hidden'); return; }
 
-  const accounts = loadAccounts();
+  const accounts = await loadAccounts();
   const user = accounts.find(a => a.username === username);
   const hash = await sha256(password);
 
@@ -1446,7 +1505,7 @@ async function doSetup() {
 
   const hash = await sha256(password);
   const accounts = [{ username, passwordHash: hash, role: 'admin', createdAt: new Date().toISOString() }];
-  saveAccounts(accounts);
+  await saveAccounts(accounts);
   currentUser = accounts[0];
   saveSession({ username, role: 'admin', time: Date.now() });
   await addLog(username, 'setup', navigator.userAgent, 'success');
@@ -1455,7 +1514,8 @@ async function doSetup() {
 window.doSetup = doSetup;
 
 async function checkAuth() {
-  const accounts = loadAccounts();
+  await initSupabase();
+  const accounts = await loadAccounts();
   if (!accounts.length) {
     document.getElementById('loginForm').classList.add('hidden');
     document.getElementById('setupForm').classList.remove('hidden');
@@ -1486,8 +1546,8 @@ function enterApp() {
   }
 }
 
-function doLogout() {
-  if (currentUser) addLog(currentUser.username, 'logout', navigator.userAgent, 'success');
+async function doLogout() {
+  if (currentUser) await addLog(currentUser.username, 'logout', navigator.userAgent, 'success');
   clearSession();
   currentUser = null;
   location.reload();
@@ -1496,7 +1556,7 @@ window.doLogout = doLogout;
 
 // ===== Account Management =====
 async function renderAccounts() {
-  const accounts = loadAccounts();
+  const accounts = await loadAccounts();
   const tbody = document.getElementById('accountBody');
   tbody.innerHTML = accounts.map((acc) => {
     const isAdmin = acc.role === 'admin';
@@ -1520,12 +1580,12 @@ async function createAccount() {
   const errEl = document.getElementById('accountError');
 
   if (!username || !password) { errEl.textContent = '请填写所有字段'; errEl.classList.remove('hidden'); return; }
-  const accounts = loadAccounts();
+  const accounts = await loadAccounts();
   if (accounts.find(a => a.username === username)) { errEl.textContent = '用户名已存在'; errEl.classList.remove('hidden'); return; }
 
   const hash = await sha256(password);
   accounts.push({ username, passwordHash: hash, role, createdAt: new Date().toISOString() });
-  saveAccounts(accounts);
+  await saveAccounts(accounts);
   await addLog(currentUser.username, 'create', navigator.userAgent, 'success');
   await renderAccounts();
   toggleAccountForm();
@@ -1537,9 +1597,12 @@ window.createAccount = createAccount;
 
 async function deleteAccount(username) {
   if (!confirm('Delete account ' + username + '?')) return;
-  let accounts = loadAccounts();
+  let accounts = await loadAccounts();
   accounts = accounts.filter(a => a.username !== username);
-  saveAccounts(accounts);
+  await saveAccounts(accounts);
+  if (useSupabase && supabase) {
+    await supabase.from('accounts').delete().eq('username', username);
+  }
   await addLog(currentUser.username, 'delete', navigator.userAgent, 'success');
   await renderAccounts();
   showToast('Account deleted');
@@ -1548,14 +1611,18 @@ window.deleteAccount = deleteAccount;
 
 // ===== Login Logs =====
 async function addLog(username, action, device, result) {
-  const logs = loadLogs();
-  logs.unshift({ id: Date.now(), time: new Date().toISOString(), username, action, device: device.substring(0,60), result });
+  const logs = await loadLogs();
+  const newLog = { id: Date.now(), time: new Date().toISOString(), username, action, device: device.substring(0,60), result };
+  logs.unshift(newLog);
   if (logs.length > 200) logs.pop();
-  saveLogs(logs);
+  if (useSupabase && supabase) {
+    await supabase.from('logs').insert({ time: newLog.time, username: newLog.username, action: newLog.action, device: newLog.device, result: newLog.result });
+  }
+  localStorage.setItem(LS_LOGS, JSON.stringify(logs));
 }
 
 async function renderLogs() {
-  const logs = loadLogs();
+  const logs = await loadLogs();
   const tbody = document.getElementById('logsBody');
   const emptyEl = document.getElementById('logsEmpty');
   if (!logs.length) { tbody.innerHTML = ''; emptyEl.classList.remove('hidden'); return; }
@@ -1571,6 +1638,9 @@ async function renderLogs() {
 
 async function clearLogs() {
   if (!confirm('Clear all logs?')) return;
+  if (useSupabase && supabase) {
+    await supabase.from('logs').delete().neq('id', 0);
+  }
   localStorage.removeItem(LS_LOGS);
   await renderLogs();
   showToast('Logs cleared');
@@ -1589,7 +1659,7 @@ async function changePassword() {
   if (newPw.length < 6) { errEl.textContent = '新密码至少6位'; errEl.classList.remove('hidden'); succEl.classList.add('hidden'); return; }
   if (newPw !== confirmPw) { errEl.textContent = '两次密码不一致'; errEl.classList.remove('hidden'); succEl.classList.add('hidden'); return; }
 
-  const accounts = loadAccounts();
+  const accounts = await loadAccounts();
   const userIndex = accounts.findIndex(a => a.username === currentUser.username);
   if (userIndex === -1) { errEl.textContent = '用户不存在'; errEl.classList.remove('hidden'); succEl.classList.add('hidden'); return; }
 
@@ -1597,7 +1667,7 @@ async function changePassword() {
   if (accounts[userIndex].passwordHash !== oldHash) { errEl.textContent = '当前密码错误'; errEl.classList.remove('hidden'); succEl.classList.add('hidden'); return; }
 
   accounts[userIndex].passwordHash = await sha256(newPw);
-  saveAccounts(accounts);
+  await saveAccounts(accounts);
   errEl.classList.add('hidden');
   succEl.textContent = 'Password updated'; succEl.classList.remove('hidden');
   await addLog(currentUser.username, 'change_password', navigator.userAgent, 'success');
