@@ -1395,7 +1395,7 @@ async function initSupabase() {
   if (!window.supabase || !SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) return false;
   try {
     supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, { auth: { persistSession: false } });
-    const { error } = await supabaseClient.from('accounts').select('username').limit(1);
+    const { error } = await supabaseClient.from('ana_accounts').select('username').limit(1);
     useSupabase = !error || error.code === 'PGRST116' || error.code === '42P01';
   } catch(e) { useSupabase = false; }
   updateDbStatus();
@@ -1446,7 +1446,7 @@ function clearSession() {
 async function saveAccounts(accs) {
   if (useSupabase && supabaseClient) {
     for (const a of accs) {
-      await supabaseClient.from('accounts').upsert({
+      await supabaseClient.from('ana_accounts').upsert({
         username: a.username, password_hash: a.passwordHash, role: a.role, created_at: a.createdAt
       }, { onConflict: 'username' });
     }
@@ -1456,7 +1456,7 @@ async function saveAccounts(accs) {
 
 async function loadAccounts() {
   if (useSupabase && supabaseClient) {
-    const { data, error } = await supabaseClient.from('accounts').select('*');
+    const { data, error } = await supabaseClient.from('ana_accounts').select('*');
     if (!error && data && data.length) {
       return data.map(d => ({ username: d.username, passwordHash: d.password_hash, role: d.role, createdAt: d.created_at }));
     }
@@ -1467,14 +1467,14 @@ async function loadAccounts() {
 async function saveLogs(logs) {
   if (useSupabase && supabaseClient) {
     const rows = logs.map(l => ({ time: l.time, username: l.username, action: l.action, device: l.device, result: l.result }));
-    await supabaseClient.from('logs').insert(rows);
+    await supabaseClient.from('ana_logs').insert(rows);
   }
   localStorage.setItem(LS_LOGS, JSON.stringify(logs));
 }
 
 async function loadLogs() {
   if (useSupabase && supabaseClient) {
-    const { data, error } = await supabaseClient.from('logs').select('*').order('id', { ascending: false }).limit(200);
+    const { data, error } = await supabaseClient.from('ana_logs').select('*').order('id', { ascending: false }).limit(200);
     if (!error && data) {
       return data.map(d => ({ id: d.id, time: d.time, username: d.username, action: d.action, device: d.device, result: d.result }));
     }
@@ -1612,7 +1612,7 @@ async function deleteAccount(username) {
   accounts = accounts.filter(a => a.username !== username);
   await saveAccounts(accounts);
   if (useSupabase && supabaseClient) {
-    await supabaseClient.from('accounts').delete().eq('username', username);
+    await supabaseClient.from('ana_accounts').delete().eq('username', username);
   }
   await addLog(currentUser.username, 'delete', navigator.userAgent, 'success');
   await renderAccounts();
@@ -1627,7 +1627,7 @@ async function addLog(username, action, device, result) {
   logs.unshift(newLog);
   if (logs.length > 200) logs.pop();
   if (useSupabase && supabaseClient) {
-    await supabaseClient.from('logs').insert({ time: newLog.time, username: newLog.username, action: newLog.action, device: newLog.device, result: newLog.result });
+    await supabaseClient.from('ana_logs').insert({ time: newLog.time, username: newLog.username, action: newLog.action, device: newLog.device, result: newLog.result });
   }
   localStorage.setItem(LS_LOGS, JSON.stringify(logs));
 }
@@ -1650,7 +1650,7 @@ async function renderLogs() {
 async function clearLogs() {
   if (!confirm('Clear all logs?')) return;
   if (useSupabase && supabaseClient) {
-    await supabaseClient.from('logs').delete().neq('id', 0);
+    await supabaseClient.from('ana_logs').delete().neq('id', 0);
   }
   localStorage.removeItem(LS_LOGS);
   await renderLogs();
